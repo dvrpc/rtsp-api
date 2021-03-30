@@ -86,7 +86,7 @@ const layers = {
   },
   muniReference:{
     sourceDef: {
-      data: 'https://arcgis.dvrpc.org/portal/rest/services/Boundaries/MunicipalBoundaries/FeatureServer/0/query?where=1=1&outsr=4326&f=geojson',
+      data: 'https://arcgis.dvrpc.org/portal/rest/services/Boundaries/MunicipalBoundaries/FeatureServer/0/query?where=1=1&outFields=geoid%2Cdvrpc_reg&outsr=4326&f=geojson',
       type: 'geojson',
     },
     layers:{
@@ -100,9 +100,9 @@ const layers = {
         visibility: "none",
         placement: null,
         filter: [
-          "!=",
-          "no",
-          ""
+          "==",
+          "dvrpc_reg",
+          "Yes"
         ]
       }
     }
@@ -132,7 +132,7 @@ const layers = {
   boundaries:{
     sourceDef: {
       type: 'geojson',
-      data: 'https://arcgis.dvrpc.org/portal/rest/services/Boundaries/MunicipalBoundaries/FeatureServer/0/query?where=1=1&outsr=4326&f=geojson',
+      data: 'https://arcgis.dvrpc.org/portal/rest/services/Boundaries/MunicipalBoundaries/FeatureServer/0/query?where=1=1&outFields=geoid&outsr=4326&f=geojson',
     },
     layers:{
       muni: {
@@ -163,7 +163,7 @@ const layers = {
         visibility: "none",
         filter: [
           "==",
-          "name",
+          "geoid",
           ""
         ],
         placement: "waterway-label"
@@ -178,7 +178,7 @@ const layers = {
         visibility: "none",
         filter: [
           "==",
-          "name",
+          "geoid",
           ""
         ],
         placement: "waterway-label"
