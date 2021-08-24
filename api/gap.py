@@ -1,13 +1,10 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
-from django.http import HttpResponse, JsonResponse
-from lib import connections as c
-import psycopg2 as psql
-from psycopg2 import sql
-import json
 import re
 
+import fastapi
+from fastapi import JSONResponse
+
+from config import PG_CREDS
+from main import db
 
 # had been in this module's urls.py
 # urlpatterns = [
@@ -17,26 +14,27 @@ import re
 # had been in rtps/urls.py
 # url(r'^api/rtps/gap\?*', include('gap.urls')),
 
+router = fastapi.APIRouter()
+
 
 def munList():
-    con = psql.connect(
-        "dbname='{}' user='{}' host='{}' password='{}'".format(
-            c.DB_NAME, c.DB_USER, c.DB_HOST, c.DB_PASS
+    with db(PG_CREDS) as cursor:
+        cursor.execute(
+            """
+            SELECT mun_name, geoid
+            FROM zonemcd_join_region_wpnr_trim
+            GROUP BY mun_name, geoid
+            ORDER BY mun_name
+            """
         )
-    )
-    cur = con.cursor()
-    cur.execute(
-        "SELECT mun_name, geoid FROM zonemcd_join_region_wpnr_trim GROUP BY mun_name, geoid ORDER BY mun_name;"
-    )
-    rows = cur.fetchall()
+        results = cursor.fetchall()
     list = []
-    for row in rows:
+    for row in results:
         list.append([row[0], row[1]])
-    return JsonResponse(list, safe=False)
+    return list
 
 
 def zoneQuery(query):
-    payload = {"status": None}
     parameters = query.split("&")
     for param in parameters:
         if "zones" in param:
@@ -51,35 +49,56 @@ def zoneQuery(query):
                 oppo = "FromZone"
             else:
                 oppo = "ToZone"
-    con = psql.connect(
-        "dbname='{}' user='{}' host='{}' password='{}'".format(
-            c.DB_NAME, c.DB_USER, c.DB_HOST, c.DB_PASS
-        )
-    )
-    cur = con.cursor()
-    query = sql.SQL(c.zq.format(direction, oppo, zones))
-    try:
-        cur.execute(query)
-        rows = cur.fetchall()
-        cargo = {}
-        for row in rows:
-            cargo[row[1]] = row[0]
-        payload["cargo"] = cargo
-        if not len(payload["cargo"]) == 0:
-            payload["status"] = "success"
-            return JsonResponse(payload, safe=False)
-        else:
-            payload["status"] = "failed"
-            payload["message"] = "Query returned no results"
-            return JsonResponse(payload, safe=False)
-    except:
-        payload["status"] = "failed"
-        payload["message"] = "Invalid query parameters"
-        return JsonResponse(payload, safe=False)
+
+    with db(PG_CREDS) as cursor:
+        try:
+            cursor.execute(
+                """
+                WITH a as(
+                    SELECT
+                        "%s" as zone,
+                        case when SUM("ConnectionScore"*demandscore)/SUM(demandscore) >= 5.5 then 'not served'
+                            else 'served'
+                        end status,
+                        SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_gap
+                    FROM odgaps_ts_s_trim
+                    WHERE "%s" IN %s
+                    AND demandscore <> 0
+                    GROUP BY "%s", gapscore, demandscore
+                )
+
+                SELECT
+                    case when w_avg_gap < 7.5 AND status = 'served' then 1
+                        when (w_avg_gap BETWEEN 7.5 AND 15) AND status = 'served' then 2
+                        when (w_avg_gap BETWEEN 15 AND 22.5) AND status = 'served' then 3
+                        when (w_avg_gap BETWEEN 22.5 AND 30) AND status = 'served' then 4
+                        when (w_avg_gap BETWEEN 30 AND 37.5) AND status = 'served' then 5
+                        when (w_avg_gap BETWEEN 37.5 AND 45) AND status = 'served' then 6
+                        when w_avg_gap < 10 AND status = 'not served' then 7
+                        when (w_avg_gap BETWEEN 10 AND 20) AND status = 'not served' then 8
+                        when (w_avg_gap BETWEEN 20 AND 30) AND status = 'not served' then 9
+                        when (w_avg_gap BETWEEN 30 AND 40) AND status = 'not served' then 10
+                        when (w_avg_gap BETWEEN 40 AND 50) AND status = 'not served' then 11
+                        when (w_avg_gap BETWEEN 50 AND 60) AND status = 'not served' then 12
+                        else 13
+                    end rank,
+                    zone as no
+                FROM a
+                """,
+                (direction, oppo, zones, direction),
+            )
+        except:
+            return JSONResponse({"message": "Invalid query parameters"})
+        results = cursor.fetchall()
+    if not results:
+        return JSONResponse({"message": "No results"})
+    payload = {}
+    for row in results:
+        payload[row[1]] = row[0]
+    return payload
 
 
 def munQuery(query):
-    payload = {"status": None}
     parameters = query.split("&")
     for p in parameters:
         if "muni" in p:
@@ -96,66 +115,105 @@ def munQuery(query):
                 oppo = "FromZone"
             else:
                 oppo = "ToZone"
-    con = psql.connect(
-        "dbname='{}' user='{}' host='{}' password='{}'".format(
-            c.DB_NAME, c.DB_USER, c.DB_HOST, c.DB_PASS
-        )
-    )
-    cur = con.cursor()
-    query = sql.SQL(c.mpmqScore.format(direction, oppo, mcd))
 
-    try:
-        cur.execute(query)
-        rows = cur.fetchall()
+    with db(PG_CREDS) as cursor:
+        try:
+            cursor.execute(
+                """
+                WITH a AS(
+                    SELECT
+                        "%s" as zone,
+                            case when SUM("ConnectionScore"*demandscore)/SUM(demandscore) >= 5.5 then 'not served'
+                                else 'served'
+                            end status,
+                        SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
+                        SUM("DailyVols") AS sumvol
+                    FROM odgaps_ts_s_trim
+                    WHERE "%s" IN(
+                        SELECT
+                            no
+                        FROM zonemcd_join_region_wpnr_trim
+                        WHERE geoid = '%s' )
+                    AND demandscore <> 0
+                    GROUP BY "%s"
+                )
 
-        demandScore = rows.pop(0)
-        cargo = {}
+                SELECT
+                    ROUND(SUM(sumvol)) rank,
+                    NULL AS no
+                FROM a
 
-        for row in rows:
-            cargo[str(row[0])] = row[1]
+                UNION ALL
 
-        payload["cargo"] = cargo
-        payload["demandScore"] = demandScore
+                SELECT
+                    zone as no,
+                    case when w_avg_gap < 7.5 AND status = 'served' then 1
+                        when (w_avg_gap BETWEEN 7.5 AND 15) AND status = 'served' then 2
+                        when (w_avg_gap BETWEEN 15 AND 22.5) AND status = 'served' then 3
+                        when (w_avg_gap BETWEEN 22.5 AND 30) AND status = 'served' then 4
+                        when (w_avg_gap BETWEEN 30 AND 37.5) AND status = 'served' then 5
+                        when (w_avg_gap BETWEEN 37.5 AND 45) AND status = 'served' then 6
+                        when w_avg_gap < 10 AND status = 'not served' then 7
+                        when (w_avg_gap BETWEEN 10 AND 20) AND status = 'not served' then 8
+                        when (w_avg_gap BETWEEN 20 AND 30) AND status = 'not served' then 9
+                        when (w_avg_gap BETWEEN 30 AND 40) AND status = 'not served' then 10
+                        when (w_avg_gap BETWEEN 40 AND 50) AND status = 'not served' then 11
+                        when (w_avg_gap BETWEEN 50 AND 60) AND status = 'not served' then 12
+                        else 13
+                    end rank
+                FROM a;
+            """,
+                (direction, oppo, mcd, direction),
+            )
+        except Exception as e:
+            return JSONResponse({"message": "Invalid query parameters " + str(e)})
+        results = cursor.fetchall()
 
-        if not len(payload["cargo"]) == 0:
-            payload["status"] = "success"
-            return JsonResponse(payload, safe=False)
-        else:
-            payload["status"] = "failed"
-            payload["message"] = "Query returned no results"
-            return JsonResponse(payload, safe=False)
-    except Exception as e:
-        payload["status"] = "failed"
-        payload["message"] = "Invalid query parameters: " + e
-        return JsonResponse(payload, safe=False)
+    if not results:
+        return JSONResponse({"message": "No results"})
+    demandScore = results.pop(0)
+    cargo = {}
+    for row in results:
+        cargo[str(row[0])] = row[1]
+    return {"cargo": cargo, "demandScore": demandScore}
 
 
 def regionalSummary():
-    payload = {"status": None}
-    con = psql.connect(
-        "dbname='{}' user='{}' host='{}' password='{}'".format(
-            c.DB_NAME, c.DB_USER, c.DB_HOST, c.DB_PASS
-        )
-    )
-    cur = con.cursor()
-    try:
-        cur.execute(c.rq)
-        results = cur.fetchall()
-        cargo = {}
-        for r in results:
-            cargo[r[1]] = round(r[0], 2)
-        payload["cargo"] = cargo
-        if not len(payload["cargo"]) == 0:
-            payload["status"] = "success"
-        else:
-            payload["status"] = "failed"
-            payload["message"] = "query returned no results"
-    except:
-        payload["status"] = "failed"
-        payload["message"] = "invalid query parameters"
-    return JsonResponse(payload, safe=False)
+    with db(PG_CREDS) as cursor:
+        try:
+            cursor.execute(
+                """
+                SELECT
+                    case when w_avgscore < 7.5 AND w_avgcon < 5.5 then 1
+                        when (w_avgscore BETWEEN 7.5 AND 15) AND w_avgcon < 5.5 then 2
+                        when (w_avgscore BETWEEN 15 AND 22.5) AND w_avgcon < 5.5 then 3
+                        when (w_avgscore BETWEEN 22.5 AND 30) AND w_avgcon < 5.5 then 4
+                        when (w_avgscore BETWEEN 30 AND 37.5) AND w_avgcon < 5.5 then 5
+                        when (w_avgscore BETWEEN 37.5 AND 45) AND w_avgcon < 5.5 then 6
+                        when w_avgscore < 10 AND w_avgcon >= 5.5 then 7
+                        when (w_avgscore BETWEEN 10 AND 20) AND w_avgcon >= 5.5 then 8
+                        when (w_avgscore BETWEEN 20 AND 30) AND w_avgcon >= 5.5 then 9
+                        when (w_avgscore BETWEEN 30 AND 40) AND w_avgcon >= 5.5 then 10
+                        when (w_avgscore BETWEEN 40 AND 50) AND w_avgcon >= 5.5 then 11
+                        when (w_avgscore BETWEEN 50 AND 60) AND w_avgcon >= 5.5 then 12
+                        else 13
+                    end rank,
+                    zone as no
+                FROM g_summary ORDER BY zone
+                """
+            )
+        except:
+            return JSONResponse({"message": "Invalid query parameters"})
+        results = cursor.fetchall()
+    if not results:
+        return JSONResponse({"message": "No results"})
+    payload = {}
+    for r in results:
+        payload[r[1]] = round(r[0], 2)
+    return payload
 
 
+@router.get("/api/rtps/v1/gap")
 def queryCheck(request):
     check = request.get_full_path().split("?")[1]
     print(check)

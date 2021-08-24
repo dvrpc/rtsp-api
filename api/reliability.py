@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+import fastapi
+from fastapi import JSONResponse
 
-from django.http import HttpResponse, JsonResponse
-from lib import connections as c
-import psycopg2 as psql
-
-from django.shortcuts import render
-
+from config import PG_CREDS
+from main import db
 
 # had been in this module's urls.py
 # urlpatterns = [
@@ -16,221 +12,150 @@ from django.shortcuts import render
 # had been in rtps/urls.py
 # url(r'^api/rtps/reliability\?*', include('reliability.urls'))
 
+router = fastapi.APIRouter()
+
+score_query = """
+    SELECT gid,
+        lines,
+        reliscore as score
+    FROM rel_reliabilityscore_t_ng
+    GROUP BY gid, lines, score;
+    """
+
+# TODO: this is not used, was it supposed to be?
+r_weighted = "SELECT gid, lines, riderrelis as weighted FROM rel_reliabilityscore_t_ng"
+
 
 def LoadTTI():
-    payload = {"status": None}
-    try:
-        con = psql.connect(
-            "dbname='{}' user='{}' host='{}' password='{}'".format(
-                c.DB_NAME, c.DB_USER, c.DB_HOST, c.DB_PASS
-            )
-        )
-        cur = con.cursor()
-        cur.execute(c.r_tti)
-        results = cur.fetchall()
-        cargo = {}
-        for r in results:
-            cargo[str(r[0])] = round(r[1], 2)
-        payload["cargo"] = cargo
-        if not len(payload["cargo"]) == 0:
-            payload["status"] = "success"
-        else:
-            payload["status"] = "failed"
-            payload["message"] = "Query returned no results"
-    except Exception as e:
-        payload["status"] = "Failed"
-        payload["message"] = "Invalid query parameters"
-    return JsonResponse(payload, safe=False)
+    with db(PG_CREDS) as cursor:
+        cursor.execute("SELECT gid, tti FROM rel_tti_t_ng")
+        results = cursor.fetchall()
+    if not results:
+        return JSONResponse({"message": "No results"})
+    payload = {}
+    for r in results:
+        payload[str(r[0])] = round(r[1], 2)
+    return payload
 
 
 def LoadScore():
     payload = {"status": None}
-    try:
-        con = psql.connect(
-            "dbname='{}' user='{}' host='{}' password='{}'".format(
-                c.DB_NAME, c.DB_USER, c.DB_HOST, c.DB_PASS
-            )
-        )
-        cur = con.cursor()
-        cur.execute(c.r_score)
-        results = cur.fetchall()
-        cargo = {}
-        for r in results:
-            cargo[str(r[0])] = {
-                "lines": r[1],
-                "score": round(r[2], 2),
-            }
-        payload["cargo"] = cargo
-        if not len(payload["cargo"]) == 0:
-            payload["status"] = "success"
-        else:
-            payload["status"] = "failed"
-            payload["message"] = "Query returned no results"
-    except Exception as e:
-        payload["status"] = "Failed"
-        payload["message"] = "Invalid query parameters"
-    return JsonResponse(payload, safe=False)
+    with db(PG_CREDS) as cursor:
+        cursor.execute(score_query)
+        results = cursor.fetchall()
+    if not results:
+        return JSONResponse({"message": "No results"})
+    payload = {}
+    for r in results:
+        payload[str(r[0])] = {
+            "lines": r[1],
+            "score": round(r[2], 2),
+        }
+    return payload
 
 
 def LoadWeighted():
-    payload = {"status": None}
-    try:
-        con = psql.connect(
-            "dbname='{}' user='{}' host='{}' password='{}'".format(
-                c.DB_NAME, c.DB_USER, c.DB_HOST, c.DB_PASS
-            )
-        )
-        cur = con.cursor()
-        cur.execute(c.r_score)
-        results = cur.fetchall()
-        cargo = {}
-        for r in results:
-            cargo[str(r[0])] = {
-                "lines": r[1],
-                "weighted": round(r[2], 2),
-            }
-        payload["cargo"] = cargo
-        if not len(payload["cargo"]) == 0:
-            payload["status"] = "success"
-        else:
-            payload["status"] = "failed"
-            payload["message"] = "Query returned no results"
-    except Exception as e:
-        payload["status"] = "Failed"
-        payload["message"] = "Invalid query parameters"
-    return JsonResponse(payload, safe=False)
+    with db(PG_CREDS) as cursor:
+        try:
+            cursor.execute(score_query)
+        except:
+            return JSONResponse({"message": "Invalid query parmaters"})
+        results = cursor.fetchall()
+    if not results:
+        return JSONResponse({"message": "No results"})
+    payload = {}
+    for r in results:
+        payload[str(r[0])] = {
+            "lines": r[1],
+            "weighted": round(r[2], 2),
+        }
+    return payload
 
 
 def LoadSpeed():
-    payload = {"status": None}
-    try:
-        con = psql.connect(
-            "dbname='{}' user='{}' host='{}' password='{}'".format(
-                c.DB_NAME, c.DB_USER, c.DB_HOST, c.DB_PASS
-            )
-        )
-        cur = con.cursor()
-        cur.execute(c.r_speed)
-        results = cur.fetchall()
-        cargo = {}
-        for r in results:
-            cargo[str(r[0])] = {"line": r[1], "avg_speed": round(r[2])}
-        payload["cargo"] = cargo
-        if not len(payload["cargo"]) == 0:
-            payload["status"] = "success"
-        else:
-            payload["status"] = "failed"
-            payload["message"] = "query returned no results"
-    except Exception as e:
-        payload["status"] = "Failed"
-        payload["message"] = "Invalid query parameters"
-    return JsonResponse(payload, safe=False)
+    with db(PG_CREDS) as cursor:
+        try:
+            cursor.execute("SELECT gid, linename, avgspeed FROM rel_avgschedspeed_ng")
+        except:
+            return JSONResponse({"message": "Invalid query parmaters"})
+        results = cursor.fetchall()
+    if not results:
+        return JSONResponse({"message": "No results"})
+    payload = {}
+    for r in results:
+        payload[str(r[0])] = {"line": r[1], "avg_speed": round(r[2])}
+    return payload
 
 
 def LoadOTP():
-    payload = {"status": None}
-    try:
-        con = psql.connect(
-            "dbname='{}' user='{}' host='{}' password='{}'".format(
-                c.DB_NAME, c.DB_USER, c.DB_HOST, c.DB_PASS
-            )
-        )
-        cur = con.cursor()
-        cur.execute(c.r_otp)
-        results = cur.fetchall()
-        cargo = {}
-        for r in results:
-            cargo[str(r[0])] = {"line": r[1], "otp": round(r[2], 2)}
-        payload["cargo"] = cargo
-        if not len(payload["cargo"]) == 0:
-            payload["status"] = "success"
-        else:
-            payload["status"] = "failed"
-            payload["message"] = "Query returned no results"
-    except Exception as e:
-        payload["status"] = "Failed"
-        payload["message"] = "Invalid query parameters"
-    return JsonResponse(payload, safe=False)
+    with db(PG_CREDS) as cursor:
+        try:
+            cursor.execute("SELECT gid, linename, otp FROM rel_line_ridershipotp_t_ng")
+        except:
+            return JSONResponse({"message": "Invalid query parmaters"})
+        results = cursor.fetchall()
+    if not results:
+        return JSONResponse({"message": "No results"})
+    payload = {}
+    for r in results:
+        payload[str(r[0])] = {"line": r[1], "otp": round(r[2], 2)}
+    return payload
 
 
 def LoadSEPTARidership():
-    payload = {"status": None}
-    try:
-        con = psql.connect(
-            "dbname='{}' user='{}' host='{}' password='{}'".format(
-                c.DB_NAME, c.DB_USER, c.DB_HOST, c.DB_PASS
-            )
-        )
-        cur = con.cursor()
-        cur.execute(c.r_septa)
-        results = cur.fetchall()
-        cargo = {}
-        for r in results:
-            cargo[str(r[0])] = {"line": r[1], "total_loads": round(r[2], 2)}
-        payload["cargo"] = cargo
-        if not len(payload["cargo"]) == 0:
-            payload["status"] = "success"
-        else:
-            payload["status"] = "failed"
-            payload["message"] = "query returned no results"
-    except Exception as e:
-        payload["status"] = "Failed"
-        payload["message"] = "Invalid query parameters"
-    return JsonResponse(payload, safe=False)
+    with db(PG_CREDS) as cursor:
+        try:
+            cursor.execute(" SELECT gid, route, tot_loads FROM surfacetransitloads_ng")
+        except:
+            return JSONResponse({"message": "Invalid query parmaters"})
+        results = cursor.fetchall()
+    if not results:
+        return JSONResponse({"message": "No results"})
+    payload = {}
+    for r in results:
+        payload[str(r[0])] = {"line": r[1], "total_loads": round(r[2], 2)}
+    return payload
 
 
 def LoadNJTRidership():
-    payload = {"status": None}
-    try:
-        con = psql.connect(
-            "dbname='{}' user='{}' host='{}' password='{}'".format(
-                c.DB_NAME, c.DB_USER, c.DB_HOST, c.DB_PASS
+    with db(PG_CREDS) as cursor:
+        try:
+            cursor.execute(
+                """
+                SELECT gid,
+                    linename,
+                    dailyrider
+                FROM rel_line_ridershipotp_t_ng
+                WHERE (division = 'WRTC' or division is null) AND (linename NOT IN ('47M', 'LUCYGO', 'LUCYGR'));
+                """
             )
-        )
-        cur = con.cursor()
-        cur.execute(c.r_njt)
-        results = cur.fetchall()
-        cargo = {}
-        for r in results:
-            cargo[str(r[0])] = {"line": r[1], "ridership": round(r[2], 2)}
-        payload["cargo"] = cargo
-        if not len(payload["cargo"]) == 0:
-            payload["status"] = "success"
-        else:
-            payload["status"] = "failed"
-            payload["message"] = "query returned no results"
-    except Exception as e:
-        payload["status"] = "Failed"
-        payload["message"] = "Invalid query parameters"
-    return JsonResponse(payload, safe=False)
+        except:
+            return JSONResponse({"message": "Invalid query parmaters"})
+        results = cursor.fetchall()
+    if not results:
+        return JSONResponse({"message": "No results"})
+    payload = {}
+    for r in results:
+        payload[str(r[0])] = {"line": r[1], "ridership": round(r[2], 2)}
+    return payload
 
 
 def LoadFilterRoutes():
-    payload = {"status": None}
-    try:
-        con = psql.connect(
-            "dbname='{}' user='{}' host='{}' password='{}'".format(
-                c.DB_NAME, c.DB_USER, c.DB_HOST, c.DB_PASS
-            )
-        )
-        cur = con.cursor()
-        cur.execute(c.r_filter)
-        results = cur.fetchall()
-        cargo = {}
-        for r in results:
-            cargo[str(r[0])] = str(r[0])
-        payload["cargo"] = cargo
-        if not len(payload["cargo"]) == 0:
-            payload["status"] = "success"
-        else:
-            payload["status"] = "failed"
-            payload["message"] = "query returned no results"
-    except Exception as e:
-        payload["status"] = "failed"
-        payload["message"] = "invalid query parameters"
-    return JsonResponse(payload, safe=False)
+    with db(PG_CREDS) as cursor:
+        try:
+            cursor.execute("SELECT linename FROM rel_line_ridershipotp_t_ng GROUP BY linename")
+        except:
+            return JSONResponse({"message": "Invalid query parmaters"})
+        results = cursor.fetchall()
+    if not results:
+        return JSONResponse({"message": "No results"})
+    payload = {}
+    for r in results:
+        payload[str(r[0])] = str(r[0])
+    return payload
 
 
+@router.get("/api/rtps/v1/reliability")
 def Route(request):
     check = request.get_full_path().split("?")[1]
     if check == "tti":
