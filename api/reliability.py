@@ -28,7 +28,10 @@ r_weighted = "SELECT gid, lines, riderrelis as weighted FROM rel_reliabilityscor
 
 def LoadTTI():
     with db(PG_CREDS) as cursor:
-        cursor.execute("SELECT gid, tti FROM rel_tti_t_ng")
+        try:
+            cursor.execute("SELECT gid, tti FROM rel_tti_t_ng")
+        except:
+            return JSONResponse({"message": "Invalid query parmaters"})
         results = cursor.fetchall()
     if not results:
         return JSONResponse({"message": "No results"})
@@ -41,7 +44,10 @@ def LoadTTI():
 def LoadScore():
     payload = {"status": None}
     with db(PG_CREDS) as cursor:
-        cursor.execute(score_query)
+        try:
+            cursor.execute(score_query)
+        except:
+            return JSONResponse({"message": "Invalid query parmaters"})
         results = cursor.fetchall()
     if not results:
         return JSONResponse({"message": "No results"})
