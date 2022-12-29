@@ -1,16 +1,9 @@
 import fastapi
-from fastapi import JSONResponse
+from fastapi.responses import JSONResponse
 
 from config import PG_CREDS
-from main import db
+from db import db
 
-# had been in this module's urls.py
-# urlpatterns = [
-#     url(r'^$', views.Route, name='query1')
-#     ]
-
-# had been in rtps/urls.py
-# url(r'^api/rtps/reliability\?*', include('reliability.urls'))
 
 router = fastapi.APIRouter()
 
@@ -26,7 +19,7 @@ score_query = """
 r_weighted = "SELECT gid, lines, riderrelis as weighted FROM rel_reliabilityscore_t_ng"
 
 
-def LoadTTI():
+def tti():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT gid, tti FROM rel_tti_t_ng")
@@ -41,7 +34,7 @@ def LoadTTI():
     return payload
 
 
-def LoadScore():
+def score():
     payload = {"status": None}
     with db(PG_CREDS) as cursor:
         try:
@@ -60,7 +53,7 @@ def LoadScore():
     return payload
 
 
-def LoadWeighted():
+def weighted():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute(score_query)
@@ -78,7 +71,7 @@ def LoadWeighted():
     return payload
 
 
-def LoadSpeed():
+def speed():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT gid, linename, avgspeed FROM rel_avgschedspeed_ng")
@@ -93,7 +86,7 @@ def LoadSpeed():
     return payload
 
 
-def LoadOTP():
+def otp():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT gid, linename, otp FROM rel_line_ridershipotp_t_ng")
@@ -108,7 +101,8 @@ def LoadOTP():
     return payload
 
 
-def LoadSEPTARidership():
+def septa():
+    """Septa ridership"""
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute(" SELECT gid, route, tot_loads FROM surfacetransitloads_ng")
@@ -123,7 +117,8 @@ def LoadSEPTARidership():
     return payload
 
 
-def LoadNJTRidership():
+def njt():
+    """NJT ridership"""
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute(
@@ -146,7 +141,8 @@ def LoadNJTRidership():
     return payload
 
 
-def LoadFilterRoutes():
+def filter():
+    """Filter routes"""
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT linename FROM rel_line_ridershipotp_t_ng GROUP BY linename")
@@ -161,22 +157,23 @@ def LoadFilterRoutes():
     return payload
 
 
-@router.get("/api/rtps/v1/reliability")
-def Route(request):
-    check = request.get_full_path().split("?")[1]
-    if check == "tti":
-        return LoadTTI()
-    elif check == "weighted":
-        return LoadWeighted()
-    elif check == "score":
-        return LoadScore()
-    elif check == "speed":
-        return LoadSpeed()
-    elif check == "otp":
-        return LoadOTP()
-    elif check == "septa":
-        return LoadSEPTARidership()
-    elif check == "njt":
-        return LoadNJTRidership()
-    elif check == "filter":
-        return LoadFilterRoutes()
+@router.get("/api/rtps/v1/reliability/{type}")
+def Route(type):
+    if type == "tti":
+        return tti()
+    elif type == "weighted":
+        return weighted()
+    elif type == "score":
+        return score()
+    elif type == "speed":
+        return speed()
+    elif type == "otp":
+        return otp()
+    elif type == "septa":
+        return septa()
+    elif type == "njt":
+        return njt()
+    elif type == "filter":
+        return filter()
+    else:
+        return JSONResponse(status_code=400, content={"message": "No such reliability type"})

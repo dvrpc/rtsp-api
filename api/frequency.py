@@ -4,21 +4,13 @@ import fastapi
 from fastapi.responses import JSONResponse
 
 from config import PG_CREDS
-from main import db
+from db import db
 
-
-# had been in this module's urls.py
-# urlpatterns = [
-#     url(r'^$', views.pageLoad, name='pageLoad')
-# ]
-
-# had been in rtps/urls.py
-# url(r'^api/rtps/frequency\?*', include('frequency.urls')),
 
 router = fastapi.APIRouter()
 
 
-def zoneLoad():
+def zone_load():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute(
@@ -64,8 +56,8 @@ def zoneLoad():
     return payload
 
 
-def busLoad():
-    with db as cursor:
+def bus_load():
+    with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT linename, changeride, percchange FROM f_bus")
         except:
@@ -81,7 +73,7 @@ def busLoad():
     return payload
 
 
-def railLoad():
+def rail_load():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT linename, changeride, percchange FROM f_rail")
@@ -96,8 +88,8 @@ def railLoad():
     return payload
 
 
-def transitLoad():
-    with db as cursor:
+def transit_load():
+    with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT linename, ampeakfreq, avg_freq FROM f_existing")
         except:
@@ -111,18 +103,15 @@ def transitLoad():
     return payload
 
 
-@router.get("/api/rtps/v1/frequency")
-def pageLoad(request):
-    path = request.get_full_path()
-    exp = re.compile(r"^/\w{3}/\w{4}/\w{9}\?(?=(zone|bus|rail|transit))")
-    mo = re.search(exp, path)
-    if "zone" in mo.group(1):
-        return zoneLoad()
-    elif "bus" in mo.group(1):
-        return busLoad()
-    elif "rail" in mo.group(1):
-        return railLoad()
-    elif "transit" in mo.group(1):
-        return transitLoad()
+@router.get("/api/rtps/v1/frequency/{type}")
+def frequency(type):
+    if type == "zone":
+        return zone_load()
+    elif type == "bus":
+        return bus_load()
+    elif type == "rail":
+        return rail_load()
+    elif type == "transit":
+        return transit_load()
     else:
-        return JSONResponse({"status": "failed", "message": "something went wrong."})
+        return JSONResponse(status_code=400, content={"message": "No such frequency type"})

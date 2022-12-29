@@ -1,23 +1,19 @@
+from typing import Optional
 import re
 
 import fastapi
-from fastapi import JSONResponse
+from fastapi.responses import JSONResponse
 
 from config import PG_CREDS
-from main import db
+from db import db
 
-# had been in this module's urls.py
-# urlpatterns = [
-#     url(r'^$', views.queryCheck, name='query1')
-#     ]
-
-# had been in rtps/urls.py
-# url(r'^api/rtps/gap\?*', include('gap.urls')),
 
 router = fastapi.APIRouter()
 
 
-def munList():
+# NOTE: had been "/api/rtps/v1/gap?list"
+@router.get("/api/rtps/v1/municipalities")
+def mun_list():
     with db(PG_CREDS) as cursor:
         cursor.execute(
             """
@@ -34,7 +30,11 @@ def munList():
     return list
 
 
-def zoneQuery(query):
+# TODO: sort this one out
+# NOTE: had been "/api/rtps/gap?zones=[xxx]&direction=xx
+@router.get("/api/rtps/v1/gap/zones")
+def zone_query(zones, direction):
+    print(zones)
     parameters = query.split("&")
     for param in parameters:
         if "zones" in param:
@@ -98,7 +98,9 @@ def zoneQuery(query):
     return payload
 
 
-def munQuery(query):
+# TODO: sort this one out
+# NOTE: had been "/api/rtps/gap?muni=xx&direction=xx"
+def mun_query(query):
     parameters = query.split("&")
     for p in parameters:
         if "muni" in p:
@@ -178,7 +180,9 @@ def munQuery(query):
     return {"cargo": cargo, "demandScore": demandScore}
 
 
-def regionalSummary():
+# NOTE: had been /api/rtps/gap?summary
+@router.get("/api/rtps/v1/gap/summary")
+def regional_summary():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute(
@@ -211,19 +215,3 @@ def regionalSummary():
     for r in results:
         payload[r[1]] = round(r[0], 2)
     return payload
-
-
-@router.get("/api/rtps/v1/gap")
-def queryCheck(request):
-    check = request.get_full_path().split("?")[1]
-    print(check)
-    if check == "list":
-        return munList()
-    elif check == "summary":
-        return regionalSummary()
-    else:
-        mo = re.match(r"^(\w+)=.*$", check)
-        if mo.group(1) == "zones":
-            return zoneQuery(check)
-        else:
-            return munQuery(check)

@@ -4,15 +4,7 @@ import fastapi
 from fastapi.responses import JSONResponse
 
 from config import PG_CREDS
-from main import db
-
-# had been in this module's urls.py:
-# urlpatterns = [
-#     url(r'^$', views.pageLoad, name='pageLoad')
-# ]
-
-# had been in rtps/urls.py
-# url(r'^api/rtps/access\?*', include('access.urls')),
+from db import db
 
 
 router = fastapi.APIRouter()
@@ -49,7 +41,7 @@ def stations():
 
 
 def zones():
-    with db as cursor:
+    with db(PG_CREDS) as cursor:
         cursor.execute(
             """
             SELECT
@@ -103,12 +95,9 @@ def zones():
     return payload
 
 
-@router.get("/api/rtps/v1/access")
-def pageLoad(request):
-    path = request.get_full_path()
-    exp = re.compile(r"^/\w{3}/\w{4}/\w{6}\?(?=(stations|zones))")
-    mo = re.search(exp, path)
-    if "stations" in mo.group(1):
+@router.get("/api/rtps/v1/access/{type}")
+def access(type):
+    if type == "stations":
         return stations()
-    elif "zones" in mo.group(1):
+    if type == "zones":
         return zones()
