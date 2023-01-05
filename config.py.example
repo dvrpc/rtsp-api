@@ -1,1 +1,2 @@
-PG_CREDS = "host=xx port=xx user=xx password=xx dbname=xx"
+# replace the ALL CAPS parts of the connection string with real values
+PG_CREDS = "postgresql://USERNAME:PASSWORD@HOST:PORT/DB"
