@@ -12,18 +12,18 @@ from db import db
 router = fastapi.APIRouter()
 
 
-class DirectionEnum(str, Enum):
+class DirectionKind(str, Enum):
     tozone = "ToZone"
     fromzone = "FromZone"
 
 
-@router.get("/api/rtps/v1/gap/zones/{zones}/{direction_enum}")
-def gaps_by_zones(zones: str, direction_enum: DirectionEnum):
-    if direction_enum is DirectionEnum.tozone:
-        direction = "ToZone"
+@router.get("/api/rtps/v1/gap/zones/{zones}/{direction}")
+def gaps_by_zones(zones: str, direction: DirectionKind):
+    if direction is DirectionKind.tozone:
+        chosen_direction = "ToZone"
         opposite_direction = "FromZone"
-    else:
-        direction = "FromZone"
+    elif direction is DirectionKind.fromzone:
+        chosen_direction = "FromZone"
         opposite_direction = "ToZone"
 
     zones = tuple([zone for zone in zones.split(",")])
@@ -32,7 +32,7 @@ def gaps_by_zones(zones: str, direction_enum: DirectionEnum):
         try:
             cursor.execute(
                 f"""WITH a as (
-                    SELECT "{direction}" as zone,
+                    SELECT "{chosen_direction}" as zone,
                         case 
                             when SUM("ConnectionScore"*demandscore)/SUM(demandscore) >= 5.5 
                             then 'not served'
@@ -42,7 +42,7 @@ def gaps_by_zones(zones: str, direction_enum: DirectionEnum):
                     FROM odgaps_ts_s_trim
                     WHERE "{opposite_direction}" IN %s
                     AND demandscore <> 0
-                    GROUP BY "{direction}", gapscore, demandscore
+                    GROUP BY "{chosen_direction}", gapscore, demandscore
                 )
 
                 SELECT
@@ -75,13 +75,13 @@ def gaps_by_zones(zones: str, direction_enum: DirectionEnum):
     return payload
 
 
-@router.get("/api/rtps/v1/gap/muni/{mcd}/{direction_enum}")
-def gaps_by_municipality(mcd: str, direction_enum: DirectionEnum):
-    if direction_enum is DirectionEnum.tozone:
-        direction = "ToZone"
+@router.get("/api/rtps/v1/gap/muni/{mcd}/{direction}")
+def gaps_by_municipality(mcd: str, direction: DirectionKind):
+    if direction is DirectionKind.tozone:
+        chosen_direction = "ToZone"
         opposite_direction = "FromZone"
-    else:
-        direction = "FromZone"
+    elif direction is DirectionKind.fromzone:
+        chosen_direction = "FromZone"
         opposite_direction = "ToZone"
 
     with db(PG_CREDS) as cursor:
@@ -89,7 +89,7 @@ def gaps_by_municipality(mcd: str, direction_enum: DirectionEnum):
             cursor.execute(
                 f"""WITH a AS(
                     SELECT 
-                        "{direction}" as zone,
+                        "{chosen_direction}" as zone,
                         case 
                             when SUM("ConnectionScore"*demandscore)/SUM(demandscore) >= 5.5 
                             then 'not served'
@@ -104,7 +104,7 @@ def gaps_by_municipality(mcd: str, direction_enum: DirectionEnum):
                         FROM zonemcd_join_region_wpnr_trim
                         WHERE geoid = %s )
                     AND demandscore <> 0
-                    GROUP BY "{direction}"
+                    GROUP BY "{chosen_direction}"
                 )
 
                 SELECT

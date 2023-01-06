@@ -1,3 +1,5 @@
+from enum import Enum
+
 import psycopg2
 
 import fastapi
@@ -8,6 +10,19 @@ from db import db
 
 
 router = fastapi.APIRouter()
+
+
+class AccessKind(str, Enum):
+    stations = "stations"
+    zones = "zones"
+
+
+@router.get("/api/rtps/v1/access/{type}")
+def access(type: AccessKind):
+    if type is AccessKind.stations:
+        return stations()
+    elif type is AccessKind.zones:
+        return zones()
 
 
 def stations():
@@ -94,11 +109,3 @@ def zones():
             cnt += 1
         payload["{}".format(cargo["no"])] = cargo
     return payload
-
-
-@router.get("/api/rtps/v1/access/{type}")
-def access(type):
-    if type == "stations":
-        return stations()
-    if type == "zones":
-        return zones()

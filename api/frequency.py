@@ -1,3 +1,5 @@
+from enum import Enum
+
 import psycopg2
 
 import fastapi
@@ -10,7 +12,26 @@ from db import db
 router = fastapi.APIRouter()
 
 
-def zone_load():
+class FrequencyKind(str, Enum):
+    zone = "zone"
+    bus = "bus"
+    rail = "rail"
+    transit = "transit"
+
+
+@router.get("/api/rtps/v1/frequency/{type}")
+def frequency(type: FrequencyKind):
+    if type is FrequencyKind.zone:
+        return zone()
+    elif type is FrequencyKind.bus:
+        return bus()
+    elif type is FrequencyKind.rail:
+        return rail()
+    elif type is FrequencyKind.transit:
+        return transit()
+
+
+def zone():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute(
@@ -54,7 +75,7 @@ def zone_load():
     return payload
 
 
-def bus_load():
+def bus():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT linename, changeride, percchange FROM f_bus")
@@ -69,7 +90,7 @@ def bus_load():
     return payload
 
 
-def rail_load():
+def rail():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT linename, changeride, percchange FROM f_rail")
@@ -82,7 +103,7 @@ def rail_load():
     return payload
 
 
-def transit_load():
+def transit():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT linename, ampeakfreq, avg_freq FROM f_existing")
@@ -93,17 +114,3 @@ def transit_load():
     for row in results:
         payload[str(row[0])] = {"am": round(row[1], 2), "avg_freq": round(row[2], 2)}
     return payload
-
-
-@router.get("/api/rtps/v1/frequency/{type}")
-def frequency(type):
-    if type == "zone":
-        return zone_load()
-    elif type == "bus":
-        return bus_load()
-    elif type == "rail":
-        return rail_load()
-    elif type == "transit":
-        return transit_load()
-    else:
-        return JSONResponse(status_code=400, content={"message": "No such frequency type"})

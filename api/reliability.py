@@ -1,3 +1,5 @@
+from enum import Enum
+
 import psycopg2
 
 import fastapi
@@ -8,6 +10,38 @@ from db import db
 
 
 router = fastapi.APIRouter()
+
+
+class ReliabilityType(str, Enum):
+    tti = "tti"
+    weighted = "weighted"
+    score = "score"
+    speed = "speed"
+    otp = "otp"
+    septa = "septa"
+    njt = "njt"
+    filter = "filter"
+
+
+@router.get("/api/rtps/v1/reliability/{type}")
+def Reliability(type: ReliabilityType):
+    if type is ReliabilityType.tti:
+        return tti()
+    elif type is ReliabilityType.weighted:
+        return weighted()
+    elif type == ReliabilityType.score:
+        return score()
+    elif type == ReliabilityType.speed:
+        return speed()
+    elif type == ReliabilityType.otp:
+        return otp()
+    elif type == ReliabilityType.septa:
+        return septa()
+    elif type == ReliabilityType.njt:
+        return njt()
+    elif type == ReliabilityType.filter:
+        return filter()
+
 
 score_query = """
     SELECT gid,
@@ -116,7 +150,9 @@ def njt():
                     linename,
                     dailyrider
                 FROM rel_line_ridershipotp_t_ng
-                WHERE (division = 'WRTC' or division is null) AND (linename NOT IN ('47M', 'LUCYGO', 'LUCYGR'));
+                WHERE 
+                    (division = 'WRTC' or division is null) AND 
+                    (linename NOT IN ('47M', 'LUCYGO', 'LUCYGR'));
                 """
             )
         except psycopg2.Error as e:
@@ -140,25 +176,3 @@ def filter():
     for r in results:
         payload[str(r[0])] = str(r[0])
     return payload
-
-
-@router.get("/api/rtps/v1/reliability/{type}")
-def Reliability(type):
-    if type == "tti":
-        return tti()
-    elif type == "weighted":
-        return weighted()
-    elif type == "score":
-        return score()
-    elif type == "speed":
-        return speed()
-    elif type == "otp":
-        return otp()
-    elif type == "septa":
-        return septa()
-    elif type == "njt":
-        return njt()
-    elif type == "filter":
-        return filter()
-    else:
-        return JSONResponse(status_code=400, content={"message": "No such reliability type"})
