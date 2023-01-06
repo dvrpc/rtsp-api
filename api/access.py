@@ -28,26 +28,14 @@ def access(type: AccessKind):
 def stations():
     with db(PG_CREDS) as cursor:
         try:
-            cursor.execute("SELECT dvrpc_id, accessible FROM a_stations")
+            cursor.execute("SELECT dvrpc_id, accessible FROM a_stations ORDER BY dvrpc_id")
         except psycopg2.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
-        stations = cursor.fetchall()
+        results = cursor.fetchall()
 
-    if not stations:
-        return {}
-
-    payload = {}
-    columns = [desc[0] for desc in cursor.description]
-    for station in stations:
-        cargo = {}
-        cnt = 0
-        for col in columns:
-            if not col == "dvrpc_id":
-                cargo["{}".format(col)] = station[cnt]
-            else:
-                cargo["{}".format(col)] = int(station[cnt])
-            cnt += 1
-        payload["{}".format(cargo["dvrpc_id"])] = cargo
+    payload = []
+    for result in results:
+        payload.append({"station": result[0], "accessible": result[1]})
     return payload
 
 
@@ -94,18 +82,16 @@ def zones():
             )
         except psycopg2.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
-        zones = cursor.fetchall()
-
-    if not zones:
-        return {}
+        results = cursor.fetchall()
 
     payload = {}
-    columns = [desc[0] for desc in cursor.description]
-    for zone in zones:
-        cargo = {}
-        cnt = 0
-        for col in columns:
-            cargo["{}".format(col)] = int(zone[cnt])
-            cnt += 1
-        payload["{}".format(cargo["no"])] = cargo
+    for result in results:
+        payload[result[0]] = {
+            "no": result[0],
+            "all_rail": result[1],
+            "current": result[2],
+            "future": result[3],
+            "discur": result[4],
+            "disfut": result[5],
+        }
     return payload
