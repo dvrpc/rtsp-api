@@ -1,3 +1,5 @@
+import psycopg2
+
 import fastapi
 from fastapi.responses import JSONResponse
 
@@ -23,11 +25,9 @@ def tti():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT gid, tti FROM rel_tti_t_ng")
-        except:
-            return JSONResponse({"message": "Invalid query parmaters"})
+        except psycopg2.Error as e:
+            return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
-    if not results:
-        return JSONResponse({"message": "No results"})
     payload = {}
     for r in results:
         payload[str(r[0])] = round(r[1], 2)
@@ -35,15 +35,12 @@ def tti():
 
 
 def score():
-    payload = {"status": None}
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute(score_query)
-        except:
-            return JSONResponse({"message": "Invalid query parmaters"})
+        except psycopg2.Error as e:
+            return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
-    if not results:
-        return JSONResponse({"message": "No results"})
     payload = {}
     for r in results:
         payload[str(r[0])] = {
@@ -57,11 +54,9 @@ def weighted():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute(score_query)
-        except:
-            return JSONResponse({"message": "Invalid query parmaters"})
+        except psycopg2.Error as e:
+            return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
-    if not results:
-        return JSONResponse({"message": "No results"})
     payload = {}
     for r in results:
         payload[str(r[0])] = {
@@ -75,11 +70,9 @@ def speed():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT gid, linename, avgspeed FROM rel_avgschedspeed_ng")
-        except:
-            return JSONResponse({"message": "Invalid query parmaters"})
+        except psycopg2.Error as e:
+            return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
-    if not results:
-        return JSONResponse({"message": "No results"})
     payload = {}
     for r in results:
         payload[str(r[0])] = {"line": r[1], "avg_speed": round(r[2])}
@@ -90,11 +83,9 @@ def otp():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT gid, linename, otp FROM rel_line_ridershipotp_t_ng")
-        except:
-            return JSONResponse({"message": "Invalid query parmaters"})
+        except psycopg2.Error as e:
+            return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
-    if not results:
-        return JSONResponse({"message": "No results"})
     payload = {}
     for r in results:
         payload[str(r[0])] = {"line": r[1], "otp": round(r[2], 2)}
@@ -105,12 +96,10 @@ def septa():
     """Septa ridership"""
     with db(PG_CREDS) as cursor:
         try:
-            cursor.execute(" SELECT gid, route, tot_loads FROM surfacetransitloads_ng")
-        except:
-            return JSONResponse({"message": "Invalid query parmaters"})
+            cursor.execute("SELECT gid, route, tot_loads FROM surfacetransitloads_ng")
+        except psycopg2.Error as e:
+            return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
-    if not results:
-        return JSONResponse({"message": "No results"})
     payload = {}
     for r in results:
         payload[str(r[0])] = {"line": r[1], "total_loads": round(r[2], 2)}
@@ -130,11 +119,9 @@ def njt():
                 WHERE (division = 'WRTC' or division is null) AND (linename NOT IN ('47M', 'LUCYGO', 'LUCYGR'));
                 """
             )
-        except:
-            return JSONResponse({"message": "Invalid query parmaters"})
+        except psycopg2.Error as e:
+            return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
-    if not results:
-        return JSONResponse({"message": "No results"})
     payload = {}
     for r in results:
         payload[str(r[0])] = {"line": r[1], "ridership": round(r[2], 2)}
@@ -146,11 +133,9 @@ def filter():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT linename FROM rel_line_ridershipotp_t_ng GROUP BY linename")
-        except:
-            return JSONResponse({"message": "Invalid query parmaters"})
+        except psycopg2.Error as e:
+            return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
-    if not results:
-        return JSONResponse({"message": "No results"})
     payload = {}
     for r in results:
         payload[str(r[0])] = str(r[0])
@@ -158,7 +143,7 @@ def filter():
 
 
 @router.get("/api/rtps/v1/reliability/{type}")
-def Route(type):
+def Reliability(type):
     if type == "tti":
         return tti()
     elif type == "weighted":

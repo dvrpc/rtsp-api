@@ -1,4 +1,4 @@
-import re
+import psycopg2
 
 import fastapi
 from fastapi.responses import JSONResponse
@@ -36,11 +36,9 @@ def zone_load():
                 JOIN a ON public."f_zonev".zonenum = a.zonenum;
                 """
             )
-        except:
-            return JSONResponse({"message": "Invalid query parameters"})
+        except psycopg2.Error as e:
+            return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
-    if not results:
-        return JSONResponse({"message": "No results"})
     payload = {}
     for row in results:
         payload[int(round(row[0]))] = {
@@ -60,11 +58,9 @@ def bus_load():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT linename, changeride, percchange FROM f_bus")
-        except:
-            return JSONResponse({"message": "Invalid query parameters"})
+        except psycopg2.Error as e:
+            return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
-    if not results:
-        return JSONResponse({"message": "No results"})
     payload = []
     for row in results:
         payload.append(
@@ -77,11 +73,9 @@ def rail_load():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT linename, changeride, percchange FROM f_rail")
-        except:
-            return JSONResponse({"message": "Invalid query parameters"})
+        except psycopg2.Error as e:
+            return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
-    if not results:
-        return JSONResponse({"message": "No results"})
     payload = {}
     for row in results:
         payload[row[0]] = {"absolute": round(row[1], 2), "percent": round(row[2], 2)}
@@ -92,11 +86,9 @@ def transit_load():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT linename, ampeakfreq, avg_freq FROM f_existing")
-        except:
-            return JSONResponse({"message": "Invalid query parameters"})
+        except psycopg2.Error as e:
+            return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
-    if not results:
-        return JSONResponse({"message": "No results"})
     payload = {}
     for row in results:
         payload[str(row[0])] = {"am": round(row[1], 2), "avg_freq": round(row[2], 2)}

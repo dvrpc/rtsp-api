@@ -17,9 +17,8 @@ class DirectionEnum(str, Enum):
     fromzone = "FromZone"
 
 
-# NOTE: had been "/api/rtps/gap?zones=[xxx]&direction=xx
 @router.get("/api/rtps/v1/gap/zones/{zones}/{direction_enum}")
-def gap_by_zones(zones: str, direction_enum: DirectionEnum):
+def gaps_by_zones(zones: str, direction_enum: DirectionEnum):
     if direction_enum is DirectionEnum.tozone:
         direction = "ToZone"
         opposite_direction = "FromZone"
@@ -70,17 +69,14 @@ def gap_by_zones(zones: str, direction_enum: DirectionEnum):
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
 
-    if not results:
-        return []
     payload = {}
     for row in results:
         payload[row[1]] = row[0]
     return payload
 
 
-# NOTE: had been "/api/rtps/gap?muni=xx&direction=xx"
 @router.get("/api/rtps/v1/gap/muni/{mcd}/{direction_enum}")
-def gap_by_municipality(mcd: str, direction_enum: DirectionEnum):
+def gaps_by_municipality(mcd: str, direction_enum: DirectionEnum):
     if direction_enum is DirectionEnum.tozone:
         direction = "ToZone"
         opposite_direction = "FromZone"
@@ -144,6 +140,7 @@ def gap_by_municipality(mcd: str, direction_enum: DirectionEnum):
 
     if not results:
         return []
+
     demand_score = results.pop(0)
     gaps = {}
     for row in results:
@@ -151,7 +148,6 @@ def gap_by_municipality(mcd: str, direction_enum: DirectionEnum):
     return {"gaps": gaps, "demand_score": demand_score}
 
 
-# NOTE: had been /api/rtps/gap?summary
 @router.get("/api/rtps/v1/gap/summary")
 def gaps_summary():
     with db(PG_CREDS) as cursor:
@@ -180,8 +176,6 @@ def gaps_summary():
         except psycopg2.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
-    if not results:
-        return []
     payload = {}
     for r in results:
         payload[r[1]] = round(r[0], 2)
