@@ -1,5 +1,6 @@
-from typing import Optional
-import re
+from enum import Enum
+
+import psycopg2
 
 import fastapi
 from fastapi.responses import JSONResponse
@@ -11,41 +12,38 @@ from db import db
 router = fastapi.APIRouter()
 
 
-# TODO: sort this one out
+class DirectionEnum(str, Enum):
+    TOZONE = "ToZone"
+    FROMZONE = "FromZone"
+
+
 # NOTE: had been "/api/rtps/gap?zones=[xxx]&direction=xx
-@router.get("/api/rtps/v1/gap/zones")
-def zone_query(zones, direction):
-    print(zones)
-    parameters = query.split("&")
-    for param in parameters:
-        if "zones" in param:
-            mo = re.findall(r"(\d+)", param)
-            eh = ""
-            for m in mo:
-                eh += "{}, ".format(m)
-            zones = "({})".format(eh[:-2])
-        elif "direction" in param:
-            direction = param.split("=")[1].replace("%20", "")
-            if "To" in direction:
-                oppo = "FromZone"
-            else:
-                oppo = "ToZone"
+@router.get("/api/rtps/v1/gap/zones/{zones}/{direction_enum}")
+def gap_by_zones(zones: str, direction_enum: DirectionEnum):
+    if direction_enum.TOZONE:
+        direction = "ToZone"
+        opposite_direction = "FromZone"
+    elif direction_enum.FROMZONE:
+        direction = "FromZone"
+        opposite_direction = "ToZone"
+
+    zones = tuple([zone for zone in zones.split(",")])
 
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute(
-                """
-                WITH a as(
-                    SELECT
-                        "%s" as zone,
-                        case when SUM("ConnectionScore"*demandscore)/SUM(demandscore) >= 5.5 then 'not served'
+                f"""WITH a as (
+                    SELECT "{direction}" as zone,
+                        case 
+                            when SUM("ConnectionScore"*demandscore)/SUM(demandscore) >= 5.5 
+                            then 'not served'
                             else 'served'
                         end status,
-                        SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_gap
+                        SUM(gapscore*demandscore)/SUM(demandscore) AS w_avg_gap
                     FROM odgaps_ts_s_trim
-                    WHERE "%s" IN %s
+                    WHERE "{opposite_direction}" IN %s
                     AND demandscore <> 0
-                    GROUP BY "%s", gapscore, demandscore
+                    GROUP BY "{direction}", gapscore, demandscore
                 )
 
                 SELECT
@@ -64,61 +62,53 @@ def zone_query(zones, direction):
                         else 13
                     end rank,
                     zone as no
-                FROM a
+                FROM a;
                 """,
-                (direction, oppo, zones, direction),
+                (zones,),
             )
-        except:
-            return JSONResponse({"message": "Invalid query parameters"})
+        except psycopg2.Error as e:
+            return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
+
     if not results:
-        return JSONResponse({"message": "No results"})
+        return []
     payload = {}
     for row in results:
         payload[row[1]] = row[0]
     return payload
 
 
-# TODO: sort this one out
 # NOTE: had been "/api/rtps/gap?muni=xx&direction=xx"
-def mun_query(query):
-    parameters = query.split("&")
-    for p in parameters:
-        if "muni" in p:
-            m = re.match(r"^\w{4}=((\w+%20\w+%20\w+)|(\w+%20\w+)|(\w+))", p)
-            if not m.group(4) is None:
-                mcd = str(m.group(4))
-            elif not m.group(3) is None:
-                mcd = m.group(3).replace("%20", " ")
-            elif not m.group(2) is None:
-                mcd = m.group(2).replace("%20", " ")
-        elif "direction" in p:
-            direction = p.split("=")[1].replace("%20", "")
-            if "To" in direction:
-                oppo = "FromZone"
-            else:
-                oppo = "ToZone"
+@router.get("/api/rtps/v1/gap/muni/{mcd}/{direction_enum}")
+def gap_by_municipality(mcd: str, direction_enum: DirectionEnum):
+    if direction_enum.TOZONE:
+        direction = "ToZone"
+        opposite_direction = "FromZone"
+    elif direction_enum.FROMZONE:
+        direction = "FromZone"
+        opposite_direction = "ToZone"
 
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute(
-                """
-                WITH a AS(
-                    SELECT
-                        "%s" as zone,
-                            case when SUM("ConnectionScore"*demandscore)/SUM(demandscore) >= 5.5 then 'not served'
-                                else 'served'
-                            end status,
-                        SUM("gapscore"*demandscore)/SUM(demandscore) AS w_avg_gap,
+                f"""WITH a AS(
+                    SELECT 
+                        "{direction}" as zone,
+                        case 
+                            when SUM("ConnectionScore"*demandscore)/SUM(demandscore) >= 5.5 
+                            then 'not served'
+                            else 'served'
+                        end status,
+                        SUM(gapscore*demandscore)/SUM(demandscore) AS w_avg_gap,
                         SUM("DailyVols") AS sumvol
                     FROM odgaps_ts_s_trim
-                    WHERE "%s" IN(
+                    WHERE "{opposite_direction}" IN (
                         SELECT
                             no
                         FROM zonemcd_join_region_wpnr_trim
-                        WHERE geoid = '%s' )
+                        WHERE geoid = %s )
                     AND demandscore <> 0
-                    GROUP BY "%s"
+                    GROUP BY "{direction}"
                 )
 
                 SELECT
@@ -146,24 +136,24 @@ def mun_query(query):
                     end rank
                 FROM a;
             """,
-                (direction, oppo, mcd, direction),
+                (mcd,),
             )
-        except Exception as e:
-            return JSONResponse({"message": "Invalid query parameters " + str(e)})
+        except psycopg2.Error as e:
+            return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
 
     if not results:
-        return JSONResponse({"message": "No results"})
-    demandScore = results.pop(0)
-    cargo = {}
+        return []
+    demand_score = results.pop(0)
+    gaps = {}
     for row in results:
-        cargo[str(row[0])] = row[1]
-    return {"cargo": cargo, "demandScore": demandScore}
+        gaps[str(row[0])] = row[1]
+    return {"gaps": gaps, "demand_score": demand_score}
 
 
 # NOTE: had been /api/rtps/gap?summary
 @router.get("/api/rtps/v1/gap/summary")
-def regional_summary():
+def gaps_summary():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute(
@@ -187,11 +177,11 @@ def regional_summary():
                 FROM g_summary ORDER BY zone
                 """
             )
-        except:
-            return JSONResponse({"message": "Invalid query parameters"})
+        except psycopg2.Error as e:
+            return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
     if not results:
-        return JSONResponse({"message": "No results"})
+        return []
     payload = {}
     for r in results:
         payload[r[1]] = round(r[0], 2)
