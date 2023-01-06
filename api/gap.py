@@ -13,17 +13,17 @@ router = fastapi.APIRouter()
 
 
 class DirectionEnum(str, Enum):
-    TOZONE = "ToZone"
-    FROMZONE = "FromZone"
+    tozone = "ToZone"
+    fromzone = "FromZone"
 
 
 # NOTE: had been "/api/rtps/gap?zones=[xxx]&direction=xx
 @router.get("/api/rtps/v1/gap/zones/{zones}/{direction_enum}")
 def gap_by_zones(zones: str, direction_enum: DirectionEnum):
-    if direction_enum.TOZONE:
+    if direction_enum is DirectionEnum.tozone:
         direction = "ToZone"
         opposite_direction = "FromZone"
-    elif direction_enum.FROMZONE:
+    else:
         direction = "FromZone"
         opposite_direction = "ToZone"
 
@@ -81,10 +81,10 @@ def gap_by_zones(zones: str, direction_enum: DirectionEnum):
 # NOTE: had been "/api/rtps/gap?muni=xx&direction=xx"
 @router.get("/api/rtps/v1/gap/muni/{mcd}/{direction_enum}")
 def gap_by_municipality(mcd: str, direction_enum: DirectionEnum):
-    if direction_enum.TOZONE:
+    if direction_enum is DirectionEnum.tozone:
         direction = "ToZone"
         opposite_direction = "FromZone"
-    elif direction_enum.FROMZONE:
+    else:
         direction = "FromZone"
         opposite_direction = "ToZone"
 
