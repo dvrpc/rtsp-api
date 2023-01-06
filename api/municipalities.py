@@ -10,7 +10,7 @@ from db import db
 router = fastapi.APIRouter()
 
 
-@router.get("/api/rtps/v1/municipalities")
+@router.get("/api/rtsp/v2/municipalities")
 def municipality_list():
     with db(PG_CREDS) as cursor:
         try:

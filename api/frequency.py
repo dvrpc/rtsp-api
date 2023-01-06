@@ -19,7 +19,7 @@ class FrequencyKind(str, Enum):
     transit = "transit"
 
 
-@router.get("/api/rtps/v1/frequency/{type}")
+@router.get("/api/rtsp/v2/frequency/{type}")
 def frequency(type: FrequencyKind):
     if type is FrequencyKind.zone:
         return zone()

@@ -17,7 +17,7 @@ class DirectionKind(str, Enum):
     fromzone = "FromZone"
 
 
-@router.get("/api/rtps/v1/gap/zones/{zones}/{direction}")
+@router.get("/api/rtsp/v2/gap/zones/{zones}/{direction}")
 def gaps_by_zones(zones: str, direction: DirectionKind):
     if direction is DirectionKind.tozone:
         chosen_direction = "ToZone"
@@ -75,7 +75,7 @@ def gaps_by_zones(zones: str, direction: DirectionKind):
     return payload
 
 
-@router.get("/api/rtps/v1/gap/muni/{mcd}/{direction}")
+@router.get("/api/rtsp/v2/gap/muni/{mcd}/{direction}")
 def gaps_by_municipality(mcd: str, direction: DirectionKind):
     if direction is DirectionKind.tozone:
         chosen_direction = "ToZone"
@@ -148,7 +148,7 @@ def gaps_by_municipality(mcd: str, direction: DirectionKind):
     return {"gaps": gaps, "demand_score": demand_score}
 
 
-@router.get("/api/rtps/v1/gap/summary")
+@router.get("/api/rtsp/v2/gap/summary")
 def gaps_summary():
     with db(PG_CREDS) as cursor:
         try:

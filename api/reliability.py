@@ -23,7 +23,7 @@ class ReliabilityType(str, Enum):
     filter = "filter"
 
 
-@router.get("/api/rtps/v1/reliability/{type}")
+@router.get("/api/rtsp/v2/reliability/{type}")
 def Reliability(type: ReliabilityType):
     if type is ReliabilityType.tti:
         return tti()

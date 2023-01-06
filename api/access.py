@@ -17,7 +17,7 @@ class AccessKind(str, Enum):
     zones = "zones"
 
 
-@router.get("/api/rtps/v1/access/{type}")
+@router.get("/api/rtsp/v2/access/{type}")
 def access(type: AccessKind):
     if type is AccessKind.stations:
         return stations()

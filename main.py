@@ -9,7 +9,7 @@ def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
     openapi_schema = get_openapi(
-        title="DVRPC RTPS API",
+        title="DVRPC RTSP API",
         version="1.0",
         description=(
             "API for the Delaware Valley Regional Planning Commission's Regional Transit "
@@ -21,7 +21,7 @@ def custom_openapi():
     return app.openapi_schema
 
 
-app = fastapi.FastAPI(openapi_url="/api/rtps/v1/openapi.json", docs_url="/api/rtps/v1/docs")
+app = fastapi.FastAPI(openapi_url="/api/rtsp/v2/openapi.json", docs_url="/api/rtsp/v2/docs")
 app.openapi = custom_openapi
 
 app.add_middleware(
