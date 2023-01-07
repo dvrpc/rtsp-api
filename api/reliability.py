@@ -12,7 +12,7 @@ from db import db
 router = fastapi.APIRouter()
 
 
-class ReliabilityType(str, Enum):
+class ReliabilityKind(str, Enum):
     tti = "tti"
     weighted = "weighted"
     score = "score"
@@ -24,22 +24,22 @@ class ReliabilityType(str, Enum):
 
 
 @router.get("/api/rtsp/v2/reliability/{type}")
-def Reliability(type: ReliabilityType):
-    if type is ReliabilityType.tti:
+def Reliability(type: ReliabilityKind):
+    if type is ReliabilityKind.tti:
         return tti()
-    elif type is ReliabilityType.weighted:
+    elif type is ReliabilityKind.weighted:
         return weighted()
-    elif type == ReliabilityType.score:
+    elif type == ReliabilityKind.score:
         return score()
-    elif type == ReliabilityType.speed:
+    elif type == ReliabilityKind.speed:
         return speed()
-    elif type == ReliabilityType.otp:
+    elif type == ReliabilityKind.otp:
         return otp()
-    elif type == ReliabilityType.septa:
+    elif type == ReliabilityKind.septa:
         return septa()
-    elif type == ReliabilityType.njt:
+    elif type == ReliabilityKind.njt:
         return njt()
-    elif type == ReliabilityType.filter:
+    elif type == ReliabilityKind.filter:
         return filter()
 
 

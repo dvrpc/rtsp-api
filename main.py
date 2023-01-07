@@ -10,7 +10,7 @@ def custom_openapi():
         return app.openapi_schema
     openapi_schema = get_openapi(
         title="DVRPC RTSP API",
-        version="1.0",
+        version="2.0",
         description=(
             "API for the Delaware Valley Regional Planning Commission's Regional Transit "
             "Screening Platform."
