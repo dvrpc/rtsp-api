@@ -1,0 +1,4 @@
+-r requirements_base.txt
+pytest==7.2.*
+httpx==0.23.*
+pytest-watch==4.2.*
