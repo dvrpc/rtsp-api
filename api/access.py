@@ -33,9 +33,9 @@ def stations():
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
 
-    payload = []
+    payload = {}
     for result in results:
-        payload.append({"station": result[0], "accessible": result[1]})
+        payload[result[0]] = result[1]
     return payload
 
 
