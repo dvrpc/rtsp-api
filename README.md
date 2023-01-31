@@ -1,6 +1,6 @@
 # rtsp-api
 
-API for DVRPC's Regional Transit Screening Platform. The frontend repo is at <https://github.com/dvrpc/rtps>.
+API for DVRPC's Regional Transit Screening Platform. The frontend repo is at <https://github.com/dvrpc/rtsp>.
 
 ## Development
 
