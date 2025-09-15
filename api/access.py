@@ -1,6 +1,6 @@
 from enum import Enum
 
-import psycopg2
+import psycopg
 
 import fastapi
 from fastapi.responses import JSONResponse
@@ -29,7 +29,7 @@ def stations():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT dvrpc_id, accessible FROM a_stations ORDER BY dvrpc_id")
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
 
@@ -80,7 +80,7 @@ def zones():
                 FROM acc_zones
                 """
             )
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
 

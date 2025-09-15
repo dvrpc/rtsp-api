@@ -1,6 +1,6 @@
 from enum import Enum
 
-import psycopg2
+import psycopg
 
 import fastapi
 from fastapi.responses import JSONResponse
@@ -59,7 +59,7 @@ def tti():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT gid, tti FROM rel_tti_t_ng")
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
     payload = {}
@@ -72,7 +72,7 @@ def score():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute(score_query)
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
     payload = {}
@@ -88,7 +88,7 @@ def weighted():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute(score_query)
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
     payload = {}
@@ -104,7 +104,7 @@ def speed():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT gid, linename, avgspeed FROM rel_avgschedspeed_ng")
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
     payload = {}
@@ -117,7 +117,7 @@ def otp():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT gid, linename, otp FROM rel_line_ridershipotp_t_ng")
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
     payload = {}
@@ -131,7 +131,7 @@ def septa():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT gid, route, tot_loads FROM surfacetransitloads_ng")
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
     payload = {}
@@ -155,7 +155,7 @@ def njt():
                     (linename NOT IN ('47M', 'LUCYGO', 'LUCYGR'));
                 """
             )
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
     payload = {}
@@ -169,7 +169,7 @@ def filter():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT linename FROM rel_line_ridershipotp_t_ng GROUP BY linename")
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
     payload = {}

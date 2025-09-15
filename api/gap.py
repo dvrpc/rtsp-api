@@ -1,6 +1,6 @@
 from enum import Enum
 
-import psycopg2
+import psycopg
 
 import fastapi
 from fastapi.responses import JSONResponse
@@ -65,7 +65,7 @@ def gaps_by_zones(zones: str, direction: DirectionKind):
                 """,
                 (zones,),
             )
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
 
@@ -134,7 +134,7 @@ def gaps_by_municipality(mcd: str, direction: DirectionKind):
             """,
                 (mcd,),
             )
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
 
@@ -173,7 +173,7 @@ def gaps_summary():
                 FROM g_summary ORDER BY zone
                 """
             )
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
     payload = {}

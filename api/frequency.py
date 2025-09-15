@@ -1,6 +1,6 @@
 from enum import Enum
 
-import psycopg2
+import psycopg
 
 import fastapi
 from fastapi.responses import JSONResponse
@@ -57,7 +57,7 @@ def zone():
                 JOIN a ON public."f_zonev".zonenum = a.zonenum;
                 """
             )
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
     payload = {}
@@ -79,7 +79,7 @@ def bus():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT linename, changeride, percchange FROM f_bus")
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
     payload = []
@@ -94,7 +94,7 @@ def rail():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT linename, changeride, percchange FROM f_rail")
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
     payload = {}
@@ -107,7 +107,7 @@ def transit():
     with db(PG_CREDS) as cursor:
         try:
             cursor.execute("SELECT linename, ampeakfreq, avg_freq FROM f_existing")
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             return JSONResponse(status_code=500, content={"message": f"Database error: {e}"})
         results = cursor.fetchall()
     payload = {}
